@@ -81,12 +81,10 @@
 
     <main class="container" style="margin-top: 2rem;">
         
-       
-
         <div class="row">
             <div class="col s12">
                 <ul class="tabs z-depth-1" id="main-tabs">
-                     <li class="tab col s4"><a class="active" href="#ranking">Ranking de ões</a></li>
+                     <li class="tab col s4"><a class="active" href="#ranking">Ranking de Campeões</a></li>
                     <li class="tab col s4"><a href="#historico">Histórico e Filtros</a></li>
                     <li class="tab col s4"><a href="#regras">Descritivo e Regras</a></li>
                 </ul>
@@ -131,7 +129,7 @@
                                     <th>Participante</th>
                                     <th>Palpites / Times</th>
                                     <th>Valendo $</th>
-                                    <th>Status</th>
+                                    <th>Status Final</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -220,32 +218,44 @@
                 resultadosRows.forEach(r => {
                     if(r.Tipo && r.Competição && r.Edição) {
                         const chave = `${r.Tipo.trim()}|${r.Competição.trim()}|${r.Edição.trim()}`;
-                        const campeaoReal = r['Melhor Selecionado'] || r['Melhor Selecionado'] || r['Selecionado'] || '';
-                        mapaResultados[chave] = campeaoReal.trim().toLowerCase();
+                        const equipeSelecionada = r['Melhor Selecionado'] || r['Selecionado'] || r['Time Campeão'] || '';
+                        const qualChegou = r['Qual chegou?'] || 'Campeão'; // Se a coluna estiver vazia, assume campeão
+                        
+                        mapaResultados[chave] = {
+                            time: equipeSelecionada.trim().toLowerCase(),
+                            statusFase: qualChegou.trim()
+                        };
                     }
                 });
 
                 // 2. Cruza os Palpites com os Resultados
                 globalData = palpitesRows.filter(row => row.Tipo && row.Participante).map(row => {
                     const chave = `${row.Tipo.trim()}|${row.Competição.trim()}|${row.Edição.trim()}`;
-                    const timeCampeao = mapaResultados[chave];
-                    let isCampeao = false;
+                    const resultado = mapaResultados[chave];
+                    
+                    let isVencedorRound = false;
+                    let qualChegouFinal = '';
 
-                    if (timeCampeao) {
-                        if (row.Participante.trim().toLowerCase() === timeCampeao) {
-                            isCampeao = true;
+                    if (resultado && resultado.time) {
+                        // Verifica se o próprio nome do participante foi o vencedor (ex: Bolão)
+                        if (row.Participante.trim().toLowerCase() === resultado.time) {
+                            isVencedorRound = true;
+                            qualChegouFinal = resultado.statusFase;
                         } 
+                        // Verifica se algum time que o participante escolheu foi o vencedor
                         else if (row['Palpites/Times']) {
                             const timesEscolhidos = row['Palpites/Times'].split(',').map(t => t.trim().toLowerCase());
-                            if (timesEscolhidos.includes(timeCampeao)) {
-                                isCampeao = true;
+                            if (timesEscolhidos.includes(resultado.time)) {
+                                isVencedorRound = true;
+                                qualChegouFinal = resultado.statusFase;
                             }
                         }
                     }
 
                     return {
                         ...row,
-                        'Campeão': isCampeao ? 'Sim' : 'Não'
+                        'VenceuRodada': isVencedorRound,
+                        'StatusFase': qualChegouFinal
                     };
                 });
 
@@ -344,8 +354,16 @@
                 if (fComp !== 'Todas' && rComp !== fComp) return;
                 if (fEdicao !== 'Todas' && rEdicao !== fEdicao) return;
 
-                const isWinner = (row['Campeão'] === 'Sim');
+                const venceuRodada = row['VenceuRodada'];
+                const statusFase = row['StatusFase'];
                 const isMoney = (row['Valendo Dinheiro'] && row['Valendo Dinheiro'].toString().trim().toLowerCase() === 'sim');
+
+                // Lógica visual do status da rodada
+                let statusHtml = '-';
+                if (venceuRodada && statusFase) {
+                    // Se a palavra for Campeão, destaca mais. Se for Semifinal/Vice, mostra o texto.
+                    statusHtml = `<span class="amber-text text-darken-3" style="font-weight:bold;">${statusFase}</span>`;
+                }
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -358,11 +376,11 @@
                     <td>${row.Edição || '-'}</td>
                     <td>
                         <strong style="font-size: 1.1em;">${row.Participante || '-'}</strong>
-                        ${isWinner ? '<i class="material-icons trophy-icon" style="font-size: 1.2em; margin-left: 5px;">emoji_events</i>' : ''}
+                        ${venceuRodada ? '<i class="material-icons trophy-icon" style="font-size: 1.2em; margin-left: 5px;">emoji_events</i>' : ''}
                     </td>
                     <td>${row['Palpites/Times'] || '-'}</td>
                     <td>${isMoney ? '<span class="new badge green" data-badge-caption="Sim"></span>' : '<span class="new badge grey" data-badge-caption="Não"></span>'}</td>
-                    <td>${isWinner ? '<span class="amber-text text-darken-3" style="font-weight:bold;">Campeão</span>' : '-'}</td>
+                    <td>${statusHtml}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -373,11 +391,11 @@
 
             globalData.forEach(row => {
                 const part = row.Participante ? row.Participante.trim() : '';
-                const win = (row['Campeão'] === 'Sim');
+                const venceu = row['VenceuRodada'];
                 
                 if (part && part !== '-' && part !== '') {
                     if (!scores[part]) scores[part] = 0;
-                    if (win) scores[part] += 1;
+                    if (venceu) scores[part] += 1;
                 }
             });
 
