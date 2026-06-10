@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Grupo Mariada - Bolão e Draft</title>
     
-    <!-- Materialize CSS -->
+    <link rel="icon" type="image/svg+xml" href="https://upload.wikimedia.org/wikipedia/commons/9/90/Cruzeiro_Esporte_Clube_%28logo%29.svg">
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     
-    <!-- Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
-    <!-- PapaParse -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     
     <style>
@@ -69,7 +68,6 @@
 </head>
 <body>
 
-    <!-- Navbar com tema Cruzeiro (Azul) -->
     <header>
         <nav class="blue darken-3">
             <div class="nav-wrapper container">
@@ -94,7 +92,6 @@
                 </ul>
             </div>
 
-            <!-- TAB 1: HISTÓRICO E FILTROS -->
             <div id="historico" class="col s12 mt-2">
                 <div class="card">
                     <div class="card-content">
@@ -138,14 +135,12 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Preenchido via JS -->
-                            </tbody>
+                                </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB 2: RANKING -->
             <div id="ranking" class="col s12">
                 <div class="card">
                     <div class="card-content">
@@ -159,14 +154,12 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Preenchido via JS -->
-                            </tbody>
+                                </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB 3: REGRAS -->
             <div id="regras" class="col s12">
                 <div class="card">
                     <div class="card-content">
@@ -195,7 +188,6 @@
         </div>
     </main>
 
-    <!-- Materialize JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
     
     <script>
@@ -204,35 +196,71 @@
             M.FormSelect.init(document.querySelectorAll('select'));
         });
 
-        // Link publicado diretamente em formato CSV do Google Sheets
-        const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT98obhLNatFLGdlUT8pvc29D5WBAwoCHykzgtuf-iSn8-b8ZUykkdPdy4CscCav0_YZbjzdUn94ujr/pub?output=csv";
+        // URLs das abas separadas, convertidas para formato CSV
+        const urlPalpites = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT98obhLNatFLGdlUT8pvc29D5WBAwoCHykzgtuf-iSn8-b8ZUykkdPdy4CscCav0_YZbjzdUn94ujr/pub?gid=99725064&single=true&output=csv";
+        const urlResultados = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT98obhLNatFLGdlUT8pvc29D5WBAwoCHykzgtuf-iSn8-b8ZUykkdPdy4CscCav0_YZbjzdUn94ujr/pub?gid=399179630&single=true&output=csv";
         
         let globalData = [];
 
         function initData() {
             const statusDiv = document.getElementById('connection-status');
             
-            Papa.parse(sheetUrl, {
-                download: true,
-                header: true,
-                complete: function(results) {
-                    if (results.data && results.data.length > 0 && results.data[0].Tipo) {
-                        statusDiv.style.display = 'block';
-                        statusDiv.className = 'status-banner status-success z-depth-1';
-                        statusDiv.innerHTML = '<i class="material-icons left">cloud_done</i> Sincronizado com o Google Sheets em tempo real.';
-                        
-                        globalData = results.data.filter(row => row.Tipo && (row.Tipo.trim() === 'Draft' || row.Tipo.trim() === 'Bolão'));
-                        
-                        // Inicialização com os dados carregados
-                        updateFiltersAndTable(true);
-                        calculateRanking();
-                    } else {
-                        showError();
+            // Faz o download das duas planilhas simultaneamente
+            Promise.all([
+                new Promise((resolve, reject) => Papa.parse(urlPalpites, { download: true, header: true, complete: resolve, error: reject })),
+                new Promise((resolve, reject) => Papa.parse(urlResultados, { download: true, header: true, complete: resolve, error: reject }))
+            ]).then(results => {
+                const palpitesRows = results[0].data;
+                const resultadosRows = results[1].data;
+
+                // 1. Cria um dicionário com os Resultados para busca rápida
+                const mapaResultados = {};
+                resultadosRows.forEach(r => {
+                    if(r.Tipo && r.Competição && r.Edição) {
+                        const chave = `${r.Tipo.trim()}|${r.Competição.trim()}|${r.Edição.trim()}`;
+                        const campeaoReal = r['Time Campeão'] || r['Time campeão'] || r['Campeão'] || '';
+                        mapaResultados[chave] = campeaoReal.trim().toLowerCase();
                     }
-                },
-                error: function() {
+                });
+
+                // 2. Cruza os Palpites com os Resultados
+                globalData = palpitesRows.filter(row => row.Tipo && row.Participante).map(row => {
+                    const chave = `${row.Tipo.trim()}|${row.Competição.trim()}|${row.Edição.trim()}`;
+                    const timeCampeao = mapaResultados[chave];
+                    let isCampeao = false;
+
+                    if (timeCampeao) {
+                        if (row.Participante.trim().toLowerCase() === timeCampeao) {
+                            isCampeao = true;
+                        } 
+                        else if (row['Palpites/Times']) {
+                            const timesEscolhidos = row['Palpites/Times'].split(',').map(t => t.trim().toLowerCase());
+                            if (timesEscolhidos.includes(timeCampeao)) {
+                                isCampeao = true;
+                            }
+                        }
+                    }
+
+                    return {
+                        ...row,
+                        'Campeão': isCampeao ? 'Sim' : 'Não'
+                    };
+                });
+
+                if (globalData.length > 0) {
+                    statusDiv.style.display = 'block';
+                    statusDiv.className = 'status-banner status-success z-depth-1';
+                    statusDiv.innerHTML = '<i class="material-icons left">cloud_done</i> Dados cruzados em tempo real do Google Sheets.';
+                    
+                    updateFiltersAndTable(true);
+                    calculateRanking();
+                } else {
                     showError();
                 }
+
+            }).catch(err => {
+                console.error(err);
+                showError();
             });
         }
 
@@ -240,16 +268,14 @@
             const statusDiv = document.getElementById('connection-status');
             statusDiv.style.display = 'block';
             statusDiv.className = 'status-banner status-error z-depth-1';
-            statusDiv.innerHTML = '<i class="material-icons left">error</i> Erro ao carregar dados online. Certifique-se de que a planilha continua publicada para a web.';
+            statusDiv.innerHTML = '<i class="material-icons left">error</i> Erro ao carregar dados online. Verifique se os links estão corretos e publicados.';
         }
 
         function updateFiltersAndTable(isInitialLoad = false) {
-            // Valores selecionados antes da atualização
             let selTipo = document.getElementById('filter-tipo').value;
             let selComp = document.getElementById('filter-comp').value;
             let selEdicao = document.getElementById('filter-edicao').value;
 
-            // Determinar opções válidas para cada filtro com base nas outras seleções (Cascata Cruzada)
             const validTipos = new Set();
             const validComps = new Set();
             const validEdicoes = new Set();
@@ -259,21 +285,17 @@
                 const rComp = row.Competição ? row.Competição.trim() : '';
                 const rEdicao = row.Edição ? row.Edição.trim() : '';
 
-                // Para o filtro de Tipo: depende de Competição e Edição selecionados
                 const matchCompForTipo = (selComp === 'Todas' || rComp === selComp);
                 const matchEdicaoForTipo = (selEdicao === 'Todas' || rEdicao === selEdicao);
                 if (matchCompForTipo && matchEdicaoForTipo && rTipo) validTipos.add(rTipo);
 
-                // Para o filtro de Competição: depende de Tipo e Edição selecionados
                 const matchTipoForComp = (selTipo === 'Todos' || rTipo === selTipo);
                 if (matchTipoForComp && matchEdicaoForTipo && rComp) validComps.add(rComp);
 
-                // Para o filtro de Edição: depende de Tipo e Competição selecionados
                 const matchCompForEdicao = (selComp === 'Todas' || rComp === selComp);
                 if (matchTipoForComp && matchCompForEdicao && rEdicao) validEdicoes.add(rEdicao);
             });
 
-            // Reconstrói as opções mantendo a seleção se ela ainda for válida
             const rebuildDropdown = (id, validSet, currentValue, defaultValue) => {
                 const select = document.getElementById(id);
                 select.innerHTML = `<option value="${defaultValue}">${defaultValue}</option>`;
@@ -299,10 +321,7 @@
             rebuildDropdown('filter-comp', validComps, selComp, 'Todas');
             rebuildDropdown('filter-edicao', validEdicoes, selEdicao, 'Todas');
 
-            // Atualiza os elementos visuais do Materialize
             M.FormSelect.init(document.querySelectorAll('select'));
-
-            // Renderiza as linhas filtradas na tabela
             renderTable();
         }
 
@@ -323,7 +342,7 @@
                 if (fComp !== 'Todas' && rComp !== fComp) return;
                 if (fEdicao !== 'Todas' && rEdicao !== fEdicao) return;
 
-                const isWinner = (row['Campeão'] && row['Campeão'].toString().trim().toLowerCase() === 'sim');
+                const isWinner = (row['Campeão'] === 'Sim');
                 const isMoney = (row['Valendo Dinheiro'] && row['Valendo Dinheiro'].toString().trim().toLowerCase() === 'sim');
 
                 const tr = document.createElement('tr');
@@ -352,7 +371,7 @@
 
             globalData.forEach(row => {
                 const part = row.Participante ? row.Participante.trim() : '';
-                const win = (row['Campeão'] && row['Campeão'].toString().trim().toLowerCase() === 'sim');
+                const win = (row['Campeão'] === 'Sim');
                 
                 if (part && part !== '-' && part !== '') {
                     if (!scores[part]) scores[part] = 0;
@@ -390,6 +409,7 @@
             });
         }
 
+        // Inicia a extração de dados ao carregar a página
         window.onload = initData;
     </script>
 </body>
