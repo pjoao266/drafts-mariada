@@ -86,7 +86,7 @@
         <div class="row">
             <div class="col s12">
                 <ul class="tabs z-depth-1" id="main-tabs">
-                     <li class="tab col s4"><a class="active" href="#ranking">Ranking de Campeões</a></li>
+                     <li class="tab col s4"><a class="active" href="#ranking">Ranking de ões</a></li>
                     <li class="tab col s4"><a href="#historico">Histórico e Filtros</a></li>
                     <li class="tab col s4"><a href="#regras">Descritivo e Regras</a></li>
                 </ul>
@@ -218,7 +218,7 @@
                 resultadosRows.forEach(r => {
                     if(r.Tipo && r.Competição && r.Edição) {
                         const chave = `${r.Tipo.trim()}|${r.Competição.trim()}|${r.Edição.trim()}`;
-                        const campeaoReal = r['Time Campeão'] || r['Time campeão'] || r['Campeão'] || '';
+                        const campeaoReal = r['Melhor Selecionado'] || r['Melhor Selecionado'] || r['Selecionado'] || '';
                         mapaResultados[chave] = campeaoReal.trim().toLowerCase();
                     }
                 });
