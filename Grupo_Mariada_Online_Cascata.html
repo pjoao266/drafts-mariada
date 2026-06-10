@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo Mariada - Bolão e Draft</title>
+    
+    <!-- Materialize CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <!-- PapaParse -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    
+    <style>
+        body {
+            background-color: #f5f7fa;
+            display: flex;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+        main {
+            flex: 1 0 auto;
+        }
+        .brand-logo img {
+            height: 45px;
+            vertical-align: middle;
+            margin-right: 10px;
+            margin-top: -5px;
+        }
+        .tabs .tab a {
+            color: #1565c0;
+            font-weight: 500;
+        }
+        .tabs .tab a:hover, .tabs .tab a.active {
+            color: #0d47a1;
+        }
+        .tabs .indicator {
+            background-color: #0d47a1;
+        }
+        .card-panel-header {
+            margin-top: 0;
+            color: #1565c0;
+            font-weight: 300;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .trophy-icon {
+            color: #ffca28;
+            vertical-align: text-bottom;
+        }
+        .status-banner {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            display: none;
+        }
+        .status-success { background-color: #e8f5e9; color: #2e7d32; }
+        .status-error { background-color: #ffebee; color: #c62828; }
+        
+        .input-field {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar com tema Cruzeiro (Azul) -->
+    <header>
+        <nav class="blue darken-3">
+            <div class="nav-wrapper container">
+                <a href="#" class="brand-logo">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/9/90/Cruzeiro_Esporte_Clube_%28logo%29.svg" alt="Cruzeiro Logo">
+                    Grupo Mariada
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container" style="margin-top: 2rem;">
+        
+        <div id="connection-status" class="status-banner z-depth-1"></div>
+
+        <div class="row">
+            <div class="col s12">
+                <ul class="tabs z-depth-1" id="main-tabs">
+                    <li class="tab col s4"><a class="active" href="#historico">Histórico e Filtros</a></li>
+                    <li class="tab col s4"><a href="#ranking">Ranking de Campeões</a></li>
+                    <li class="tab col s4"><a href="#regras">Descritivo e Regras</a></li>
+                </ul>
+            </div>
+
+            <!-- TAB 1: HISTÓRICO E FILTROS -->
+            <div id="historico" class="col s12 mt-2">
+                <div class="card">
+                    <div class="card-content">
+                        <h5 class="card-panel-header"><i class="material-icons left">filter_list</i>Filtros Dinâmicos</h5>
+                        
+                        <div class="row" style="margin-bottom: 0;">
+                            <div class="input-field col s12 m4">
+                                <select id="filter-tipo" onchange="updateFiltersAndTable()">
+                                    <option value="Todos">Todos</option>
+                                </select>
+                                <label>Tipo de Jogo</label>
+                            </div>
+                            <div class="input-field col s12 m4">
+                                <select id="filter-comp" onchange="updateFiltersAndTable()">
+                                    <option value="Todas">Todas</option>
+                                </select>
+                                <label>Competição</label>
+                            </div>
+                            <div class="input-field col s12 m4">
+                                <select id="filter-edicao" onchange="updateFiltersAndTable()">
+                                    <option value="Todas">Todas</option>
+                                </select>
+                                <label>Edição / Temporada</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-content" style="padding: 0;">
+                        <table class="highlight responsive-table striped" id="history-table">
+                            <thead class="grey lighten-4">
+                                <tr>
+                                    <th style="padding-left: 20px;">Tipo</th>
+                                    <th>Competição</th>
+                                    <th>Edição</th>
+                                    <th>Participante</th>
+                                    <th>Palpites / Times</th>
+                                    <th>Valendo $</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Preenchido via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: RANKING -->
+            <div id="ranking" class="col s12">
+                <div class="card">
+                    <div class="card-content">
+                        <h5 class="card-panel-header"><i class="material-icons left">emoji_events</i>Ranking Geral</h5>
+                        <table class="highlight centered" id="ranking-table">
+                            <thead>
+                                <tr>
+                                    <th>Posição</th>
+                                    <th>Participante</th>
+                                    <th>Troféus</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Preenchido via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: REGRAS -->
+            <div id="regras" class="col s12">
+                <div class="card">
+                    <div class="card-content">
+                        <h5 class="card-panel-header"><i class="material-icons left">gavel</i>Regras Oficiais</h5>
+                        
+                        <h6><strong>Dinâmica do Draft</strong></h6>
+                        <p>No formato Draft, os participantes se revezam escolhendo times ou seleções para a competição. A ordem de escolha é definida pelo resultado da última competição.</p>
+                        
+                        <div class="card-panel grey lighten-4" style="margin-top: 20px;">
+                            <h6 class="blue-text text-darken-3"><strong>📜 Regra de Ordem de Escolha (5 Rodadas)</strong></h6>
+                            <ul class="collection">
+                                <li class="collection-item"><strong>1ª Escolha:</strong> <i class="material-icons tiny trophy-icon">emoji_events</i> Campeão (1º colocado) da última competição</li>
+                                <li class="collection-item"><strong>2ª Escolha:</strong> 🥈 2º Colocado da última competição</li>
+                                <li class="collection-item"><strong>3ª Escolha:</strong> 🥉 3º Colocado da última competição</li>
+                                <li class="collection-item"><strong>4ª Escolha:</strong> 🥈 2º Colocado da última competição</li>
+                                <li class="collection-item"><strong>5ª Escolha:</strong> <i class="material-icons tiny trophy-icon">emoji_events</i> Campeão (1º colocado) da última competição</li>
+                            </ul>
+                        </div>
+
+                        <h6><strong>Bolão</strong></h6>
+                        <p>O formato Bolão é um modelo mais tradicional, podendo envolver dinheiro (💲) para premiar o grande vencedor da edição.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Materialize JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            M.Tabs.init(document.querySelectorAll('.tabs'));
+            M.FormSelect.init(document.querySelectorAll('select'));
+        });
+
+        // Link publicado diretamente em formato CSV do Google Sheets
+        const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT98obhLNatFLGdlUT8pvc29D5WBAwoCHykzgtuf-iSn8-b8ZUykkdPdy4CscCav0_YZbjzdUn94ujr/pub?output=csv";
+        
+        let globalData = [];
+
+        function initData() {
+            const statusDiv = document.getElementById('connection-status');
+            
+            Papa.parse(sheetUrl, {
+                download: true,
+                header: true,
+                complete: function(results) {
+                    if (results.data && results.data.length > 0 && results.data[0].Tipo) {
+                        statusDiv.style.display = 'block';
+                        statusDiv.className = 'status-banner status-success z-depth-1';
+                        statusDiv.innerHTML = '<i class="material-icons left">cloud_done</i> Sincronizado com o Google Sheets em tempo real.';
+                        
+                        globalData = results.data.filter(row => row.Tipo && (row.Tipo.trim() === 'Draft' || row.Tipo.trim() === 'Bolão'));
+                        
+                        // Inicialização com os dados carregados
+                        updateFiltersAndTable(true);
+                        calculateRanking();
+                    } else {
+                        showError();
+                    }
+                },
+                error: function() {
+                    showError();
+                }
+            });
+        }
+
+        function showError() {
+            const statusDiv = document.getElementById('connection-status');
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status-banner status-error z-depth-1';
+            statusDiv.innerHTML = '<i class="material-icons left">error</i> Erro ao carregar dados online. Certifique-se de que a planilha continua publicada para a web.';
+        }
+
+        function updateFiltersAndTable(isInitialLoad = false) {
+            // Valores selecionados antes da atualização
+            let selTipo = document.getElementById('filter-tipo').value;
+            let selComp = document.getElementById('filter-comp').value;
+            let selEdicao = document.getElementById('filter-edicao').value;
+
+            // Determinar opções válidas para cada filtro com base nas outras seleções (Cascata Cruzada)
+            const validTipos = new Set();
+            const validComps = new Set();
+            const validEdicoes = new Set();
+
+            globalData.forEach(row => {
+                const rTipo = row.Tipo ? row.Tipo.trim() : '';
+                const rComp = row.Competição ? row.Competição.trim() : '';
+                const rEdicao = row.Edição ? row.Edição.trim() : '';
+
+                // Para o filtro de Tipo: depende de Competição e Edição selecionados
+                const matchCompForTipo = (selComp === 'Todas' || rComp === selComp);
+                const matchEdicaoForTipo = (selEdicao === 'Todas' || rEdicao === selEdicao);
+                if (matchCompForTipo && matchEdicaoForTipo && rTipo) validTipos.add(rTipo);
+
+                // Para o filtro de Competição: depende de Tipo e Edição selecionados
+                const matchTipoForComp = (selTipo === 'Todos' || rTipo === selTipo);
+                if (matchTipoForComp && matchEdicaoForTipo && rComp) validComps.add(rComp);
+
+                // Para o filtro de Edição: depende de Tipo e Competição selecionados
+                const matchCompForEdicao = (selComp === 'Todas' || rComp === selComp);
+                if (matchTipoForComp && matchCompForEdicao && rEdicao) validEdicoes.add(rEdicao);
+            });
+
+            // Reconstrói as opções mantendo a seleção se ela ainda for válida
+            const rebuildDropdown = (id, validSet, currentValue, defaultValue) => {
+                const select = document.getElementById(id);
+                select.innerHTML = `<option value="${defaultValue}">${defaultValue}</option>`;
+                
+                let currentStillValid = false;
+                Array.from(validSet).sort().forEach(val => {
+                    const opt = document.createElement('option');
+                    opt.value = val;
+                    opt.textContent = val;
+                    if (val === currentValue && !isInitialLoad) {
+                        opt.selected = true;
+                        currentStillValid = true;
+                    }
+                    select.appendChild(opt);
+                });
+
+                if (!currentStillValid && !isInitialLoad) {
+                    select.value = defaultValue;
+                }
+            };
+
+            rebuildDropdown('filter-tipo', validTipos, selTipo, 'Todos');
+            rebuildDropdown('filter-comp', validComps, selComp, 'Todas');
+            rebuildDropdown('filter-edicao', validEdicoes, selEdicao, 'Todas');
+
+            // Atualiza os elementos visuais do Materialize
+            M.FormSelect.init(document.querySelectorAll('select'));
+
+            // Renderiza as linhas filtradas na tabela
+            renderTable();
+        }
+
+        function renderTable() {
+            const fTipo = document.getElementById('filter-tipo').value;
+            const fComp = document.getElementById('filter-comp').value;
+            const fEdicao = document.getElementById('filter-edicao').value;
+
+            const tbody = document.querySelector('#history-table tbody');
+            tbody.innerHTML = '';
+
+            globalData.forEach(row => {
+                const rTipo = row.Tipo ? row.Tipo.trim() : '';
+                const rComp = row.Competição ? row.Competição.trim() : '';
+                const rEdicao = row.Edição ? row.Edição.trim() : '';
+
+                if (fTipo !== 'Todos' && rTipo !== fTipo) return;
+                if (fComp !== 'Todas' && rComp !== fComp) return;
+                if (fEdicao !== 'Todas' && rEdicao !== fEdicao) return;
+
+                const isWinner = (row['Campeão'] && row['Campeão'].toString().trim().toLowerCase() === 'sim');
+                const isMoney = (row['Valendo Dinheiro'] && row['Valendo Dinheiro'].toString().trim().toLowerCase() === 'sim');
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="padding-left: 20px;">
+                        <span class="chip ${rTipo === 'Draft' ? 'blue lighten-4 blue-text text-darken-4' : 'green lighten-4 green-text text-darken-4'}">
+                            ${row.Tipo || '-'}
+                        </span>
+                    </td>
+                    <td><strong>${row.Competição || '-'}</strong></td>
+                    <td>${row.Edição || '-'}</td>
+                    <td>
+                        <strong style="font-size: 1.1em;">${row.Participante || '-'}</strong>
+                        ${isWinner ? '<i class="material-icons trophy-icon" style="font-size: 1.2em; margin-left: 5px;">emoji_events</i>' : ''}
+                    </td>
+                    <td>${row['Palpites/Times'] || '-'}</td>
+                    <td>${isMoney ? '<span class="new badge green" data-badge-caption="Sim"></span>' : '<span class="new badge grey" data-badge-caption="Não"></span>'}</td>
+                    <td>${isWinner ? '<span class="amber-text text-darken-3" style="font-weight:bold;">Campeão</span>' : '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function calculateRanking() {
+            const scores = {};
+
+            globalData.forEach(row => {
+                const part = row.Participante ? row.Participante.trim() : '';
+                const win = (row['Campeão'] && row['Campeão'].toString().trim().toLowerCase() === 'sim');
+                
+                if (part && part !== '-' && part !== '') {
+                    if (!scores[part]) scores[part] = 0;
+                    if (win) scores[part] += 1;
+                }
+            });
+
+            const rankingArray = Object.keys(scores).map(p => ({
+                nome: p,
+                trofeus: scores[p]
+            })).sort((a, b) => b.trofeus - a.trofeus);
+
+            const tbody = document.querySelector('#ranking-table tbody');
+            tbody.innerHTML = '';
+
+            rankingArray.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                let positionStr = (index + 1) + 'º';
+                let iconStr = '';
+                
+                if(index === 0) iconStr = '🥇';
+                else if(index === 1) iconStr = '🥈';
+                else if(index === 2) iconStr = '🥉';
+
+                tr.innerHTML = `
+                    <td style="font-size: 1.2rem;">${iconStr} <strong>${positionStr}</strong></td>
+                    <td style="font-size: 1.2rem;">${item.nome}</td>
+                    <td style="font-size: 1.2rem;">
+                        <span class="amber-text text-darken-2" style="font-weight: bold;">
+                            <i class="material-icons" style="vertical-align: text-bottom;">emoji_events</i> ${item.trofeus}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        window.onload = initData;
+    </script>
+</body>
+</html>
